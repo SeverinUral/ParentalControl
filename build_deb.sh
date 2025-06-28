@@ -5,6 +5,7 @@ cp -vf parentalcontrol deb/parentalcontrol/usr/bin/parentalcontrol
 
 chmod +x deb/parentalcontrol/usr/bin/parentalcontrol
 
+echo "Previous $(cat deb/parentalcontrol/DEBIAN/control | grep '^Version:')"
 echo "Enter Version (x.x-x.x):"
 read VERSION
 
