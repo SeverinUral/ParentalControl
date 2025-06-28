@@ -8,15 +8,20 @@ import datetime
 import configparser
 
 from time import sleep
-from os.path import join, isfile
+from os.path import isfile, join
 
+CONFIG_DIR = "/etc/parentalcontrol"
+CONFIG_FILE = join(CONFIG_DIR, "config.conf")
 
-CONFIG_DIR = join(os.environ['HOME'], ".config/parentalcontrol")
-CONFIG_FILE = join(os.environ['HOME'], ".config/parentalcontrol/config.conf")
-DEFAULT_CONFIG = {"blocked_programms": "telegram-desktop, tele",
-                  "time": "19:00-20:00, 06:00-07:00",
-                  "delay": 2,
-                  "weekdays": "Mon, Tue, Wed, Thu, Fri, Sat, Sun"}
+# FOR DEBBUG
+# CONFIG_DIR = join(".")
+# CONFIG_FILE = join("config.conf")
+# FOR DEBBUG
+
+DEFAULT_GENERAL = {"blocked_programms": "telegram-desktop, tele",
+                   "delay": 2}
+DEFAULT_DAY = {"time": "19:00-20:00, 06:00-07:00"}
+WEEKDAYS = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
 
 
 def check_config_file():
@@ -24,7 +29,10 @@ def check_config_file():
         return
 
     config = configparser.ConfigParser()
-    config['General'] = DEFAULT_CONFIG
+    config['General'] = DEFAULT_GENERAL
+
+    for day in WEEKDAYS:
+        config[day] = DEFAULT_DAY
 
     os.makedirs(CONFIG_DIR, exist_ok=True)
     with open(CONFIG_FILE, 'w') as configfile:
@@ -36,33 +44,36 @@ def read_conf() -> dict:
     config = configparser.ConfigParser()
     config.read(CONFIG_FILE)
 
-    it: dict = dict(config.items("General"))
+    it: dict = {}
 
-    it["blocked_programms"] = str(it.get('blocked_programms')).split(', ')
-    it["weekdays"] = str(it.get('weekdays')).split(', ')
-    it["time"] = str(it.get('time')).split(', ')
+    it["General"] = dict(config.items("General"))
+    it["General"]["blocked_programms"] = str(
+        it["General"].get('blocked_programms')).split(', ')
+
+    for day in WEEKDAYS:
+        it[day] = dict(config.items(day))
+        it[day]["time"] = str(it[day].get('time')).split(', ')
 
     return it
 
 
 def main():
-    config_dict: dict[str, list | str] = read_conf()
+    config_dict: dict = read_conf()
 
     while(True):
         curr_day = datetime.datetime.now().strftime('%a')
         cur_t = datetime.datetime.now().strftime('%H:%M')
 
         for proc in psutil.process_iter(['name']):
-            for programm in config_dict.get('blocked_programms'):
-                if not(programm in proc.info['name']):
+            for programm in config_dict["General"].get('blocked_programms'):
+                if not (proc.info['name'].startswith(programm)):
                     continue
-                if not(curr_day in config_dict.get('weekdays')):
-                    continue
-                for t in config_dict.get('time'):
-                    if cur_t >= t.split('-')[0] and cur_t <= t.split('-')[1]:
+                for t in config_dict[curr_day].get('time'):
+                    tt = t.split('-')
+                    if cur_t >= tt[0] and cur_t <= tt[1]:
                         proc.terminate()
 
-        sleep(int(config_dict.get('delay')))
+        sleep(int(config_dict['General'].get('delay')))
 
 
 if __name__ == '__main__':
