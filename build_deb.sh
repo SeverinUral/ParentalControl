@@ -18,7 +18,7 @@ Priority: optional
 Depends: python3, python3-psutil
 Maintainer: Alex <alexfomg@gmail.com>
 Description: Parental Control
-Installed-Size: $(du -sb deb/parentalcontrol  | grep -o '^[0-9]*')" 
+Installed-Size: $(du -sb deb/parentalcontrol | grep -o '^[0-9]*')" 
 
 echo "$CONTROL_FILE" > deb/parentalcontrol/DEBIAN/control 
 
