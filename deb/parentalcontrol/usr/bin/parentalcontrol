@@ -1,0 +1,80 @@
+#! /usr/bin/python3
+# -*- coding utf-8 -*-
+# (c) 2024 Fomenko A V
+
+import os
+import psutil
+import datetime
+import configparser
+
+from time import sleep
+from os.path import isfile, join
+
+CONFIG_DIR = "/etc/parentalcontrol"
+CONFIG_FILE = join(CONFIG_DIR, "config.conf")
+
+# FOR DEBBUG
+# CONFIG_DIR = join(".")
+# CONFIG_FILE = join("config.conf")
+# FOR DEBBUG
+
+DEFAULT_GENERAL = {"blocked_programms": "telegram-desktop, tele",
+                   "delay": 2}
+DEFAULT_DAY = {"time": "19:00-20:00, 06:00-07:00"}
+WEEKDAYS = ('Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun')
+
+
+def check_config_file():
+    if isfile(CONFIG_FILE):
+        return
+
+    config = configparser.ConfigParser()
+    config['General'] = DEFAULT_GENERAL
+
+    for day in WEEKDAYS:
+        config[day] = DEFAULT_DAY
+
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(CONFIG_FILE, 'w') as configfile:
+        config.write(configfile)
+
+
+def read_conf() -> dict:
+    check_config_file()
+    config = configparser.ConfigParser()
+    config.read(CONFIG_FILE)
+
+    it: dict = {}
+
+    it["General"] = dict(config.items("General"))
+    it["General"]["blocked_programms"] = str(
+        it["General"].get('blocked_programms')).split(', ')
+
+    for day in WEEKDAYS:
+        it[day] = dict(config.items(day))
+        it[day]["time"] = str(it[day].get('time')).split(', ')
+
+    return it
+
+
+def main():
+    config_dict: dict = read_conf()
+
+    while(True):
+        curr_day = datetime.datetime.now().strftime('%a')
+        cur_t = datetime.datetime.now().strftime('%H:%M')
+
+        for proc in psutil.process_iter(['name']):
+            for programm in config_dict["General"].get('blocked_programms'):
+                if not proc.info['name'].startswith(programm):
+                    continue
+                for t in config_dict[curr_day].get('time'):
+                    tt = t.split('-')
+                    if cur_t >= tt[0] and cur_t <= tt[1]:
+                        proc.terminate()
+
+        sleep(int(config_dict['General'].get('delay')))
+
+
+if __name__ == '__main__':
+    main()

@@ -1,0 +1,69 @@
+#! /usr/bin/python3
+# -*- coding utf-8 -*-
+# (c) 2024 Fomenko A V
+
+import os
+import psutil
+import datetime
+import configparser
+
+from time import sleep
+from os.path import join, isfile
+
+
+CONFIG_DIR = join(os.environ['HOME'], ".config/parentalcontrol")
+CONFIG_FILE = join(os.environ['HOME'], ".config/parentalcontrol/config.conf")
+DEFAULT_CONFIG = {"blocked_programms": "telegram-desktop, tele",
+                  "time": "19:00-20:00, 06:00-07:00",
+                  "delay": 2,
+                  "weekdays": "Mon, Tue, Wed, Thu, Fri, Sat, Sun"}
+
+
+def check_config_file():
+    if isfile(CONFIG_FILE):
+        return
+
+    config = configparser.ConfigParser()
+    config['General'] = DEFAULT_CONFIG
+
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(CONFIG_FILE, 'w') as configfile:
+        config.write(configfile)
+
+
+def read_conf() -> dict:
+    check_config_file()
+    config = configparser.ConfigParser()
+    config.read(CONFIG_FILE)
+
+    it: dict = dict(config.items("General"))
+
+    it["blocked_programms"] = str(it.get('blocked_programms')).split(', ')
+    it["weekdays"] = str(it.get('weekdays')).split(', ')
+    it["time"] = str(it.get('time')).split(', ')
+
+    return it
+
+
+def main():
+    config_dict: dict[str, list | str] = read_conf()
+
+    while(True):
+        curr_day = datetime.datetime.now().strftime('%a')
+        cur_t = datetime.datetime.now().strftime('%H:%M')
+
+        for proc in psutil.process_iter(['name']):
+            for programm in config_dict.get('blocked_programms'):
+                if not(programm in proc.info['name']):
+                    continue
+                if not(curr_day in config_dict.get('weekdays')):
+                    continue
+                for t in config_dict.get('time'):
+                    if cur_t >= t.split('-')[0] and cur_t <= t.split('-')[1]:
+                        proc.terminate()
+
+        sleep(int(config_dict.get('delay')))
+
+
+if __name__ == '__main__':
+    main()

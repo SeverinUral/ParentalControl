@@ -1,0 +1,10 @@
+[Unit]
+Description=Parental control
+After=multi-user.target
+[Service]
+Type=idle
+ExecStart=/usr/bin/parentalcontrol
+User=root
+Group=root
+[Install]
+WantedBy=multi-user.target
