@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# DEBIAN package
+*.deb
+
 # C extensions
 *.so
 
